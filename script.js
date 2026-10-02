@@ -1,4 +1,3 @@
-```javascript
 const SLOTS = [
   ["matin", "Matin"],
   ["midi", "Midi"],
@@ -790,4 +789,3 @@ document
   });
 
 render();
-```
