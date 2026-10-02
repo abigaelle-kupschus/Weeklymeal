@@ -67,7 +67,7 @@ document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.d
 }
 function setup(){
 page="setup";const a=$("#app");
-if(!tmp.sex){a.innerHTML=`<h1>Bienvenue 👋</h1><p>Tu es :</p><div class="choice"><button onclick="pick('m')">Un mec</button><button onclick="pick('f')">Une meuf</button></div>`;return}
+if(!tmp.sex){a.innerHTML=`<h1>Bienvenue 👋</h1><p>Tu es :</p><div class="choice"><button onclick="pick('m')">Un homme</button><button onclick="pick('f')">Une femme</button></div>`;return}
 if(tmp.sex==="f"&&tmp.cycle===undefined){a.innerHTML=`<h1>Cycle</h1><p>Tu veux adapter les repas à ton cycle ?</p><div class="choice"><button onclick="cyc(true)">Oui</button><button class="sec" onclick="cyc(false)">Non</button></div>`;return}
 if(tmp.cycle){a.innerHTML=`<h1>Tu en es où ?</h1><div class="choice">${PHASES.map((x,i)=>`<button class="sec" onclick="fin(${i})">${x.n}</button>`).join("")}</div>`;return}
 }
@@ -112,7 +112,7 @@ $("#app").innerHTML=`<button class="sec" onclick="page='plan';render()">← Reto
 function setD(k,f,v){S.desserts=S.desserts||{};S.desserts[k]=S.desserts[k]||{};S.desserts[k][f]=v;save()}
 function settings(){
 const p=S.profile,cur=phaseFor(0),c=(on)=>on?"":"sec";
-let h=`<h1>⚙️ Profil</h1><div class="card"><b>Je suis</b><div class="choice"><button class="${c(p.sex==="m")}" onclick="setSex('m')">Un mec</button><button class="${c(p.sex==="f")}" onclick="setSex('f')">Une meuf</button></div>`;
+let h=`<h1>⚙️ Profil</h1><div class="card"><b>Je suis</b><div class="choice"><button class="${c(p.sex==="m")}" onclick="setSex('m')">Un homme</button><button class="${c(p.sex==="f")}" onclick="setSex('f')">Une femme</button></div>`;
 if(p.sex==="f"){
 h+=`<b>Adapter à mon cycle ?</b><div class="choice"><button class="${c(p.cycle)}" onclick="setCyc(true)">Oui</button><button class="${c(!p.cycle)}" onclick="setCyc(false)">Non</button></div>`;
 if(p.cycle)h+=`<b>Je suis en phase</b><div class="choice">${PHASES.map((x,i)=>`<button class="${c(cur===i)}" onclick="setPhase(${i})">${x.n}</button>`).join("")}</div>`}
