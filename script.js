@@ -341,7 +341,7 @@ function plan() {
     <div class="card">
 
       <h2 style="margin:0;font-size:1.05rem">
-        🍰 Dessert de la semaine
+        Dessert de la semaine
       </h2>
 
       <div class="slot">
