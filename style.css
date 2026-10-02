@@ -1,0 +1,210 @@
+```css
+:root {
+  --bg: #f7f3fa;
+  --card: #ffffff;
+  --tx: #2b2630;
+  --mut: #82798a;
+  --ac: #9b7bb5;
+  --ln: #e4dbea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1d1921;
+    --card: #28232d;
+    --tx: #f1ebf5;
+    --mut: #a99eaf;
+    --ac: #b995cf;
+    --ln: #3b3342;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--tx);
+  padding-bottom: 80px;
+}
+
+main {
+  max-width: 720px;
+  margin: auto;
+  padding: 16px;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 12px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--ac);
+  color: #fff;
+}
+
+button.sec {
+  background: var(--card);
+  color: var(--tx);
+  border: 1px solid var(--ln);
+}
+
+input,
+textarea {
+  width: 100%;
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--ln);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--tx);
+  margin-top: 4px;
+}
+
+textarea {
+  min-height: 48px;
+  resize: vertical;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--ln);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.nav b {
+  text-align: center;
+  flex: 1;
+}
+
+.phase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--ln);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.q {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  padding: 0;
+}
+
+.slot {
+  margin-top: 10px;
+}
+
+.slot label {
+  font-size: 0.8rem;
+  color: var(--mut);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.day h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  text-transform: capitalize;
+}
+
+.tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: var(--card);
+  border-top: 1px solid var(--ln);
+}
+
+.tabs button {
+  flex: 1;
+  border-radius: 0;
+  background: none;
+  color: var(--mut);
+  padding: 16px;
+}
+
+.tabs button.on {
+  color: var(--ac);
+  font-weight: 700;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ln);
+}
+
+.item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+.item span {
+  flex: 1;
+}
+
+.item.done span {
+  text-decoration: line-through;
+  color: var(--mut);
+}
+
+.item button {
+  background: none;
+  color: var(--mut);
+  padding: 4px 8px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row input {
+  margin: 0;
+}
+
+.choice {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.choice button {
+  flex: 1;
+  min-width: 140px;
+}
+
+ul {
+  padding-left: 20px;
+}
+```

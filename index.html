@@ -1,128 +1,24 @@
+```html
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Planning repas</title>
-<style>
-:root{--bg:#faf6f1;--card:#fff;--tx:#2b2622;--mut:#8a8178;--ac:#c2674b;--ln:#e8dfd4}
-@media(prefers-color-scheme:dark){:root{--bg:#1d1a17;--card:#27231f;--tx:#f1ebe4;--mut:#a09689;--ac:#e08a6e;--ln:#3a342e}}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:80px}
-main{max-width:720px;margin:auto;padding:16px}
-h1{font-size:1.4rem;margin:0 0 12px}
-button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--ac);color:#fff}
-button.sec{background:var(--card);color:var(--tx);border:1px solid var(--ln)}
-input,textarea{width:100%;font:inherit;padding:8px;border:1px solid var(--ln);border-radius:8px;background:var(--bg);color:var(--tx);margin-top:4px}
-textarea{min-height:48px;resize:vertical}
-.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;margin-bottom:12px}
-.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px}
-.nav b{text-align:center;flex:1}
-.phase{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:10px;margin-bottom:12px}
-.q{width:28px;height:28px;border-radius:50%;padding:0}
-.slot{margin-top:10px}.slot label{font-size:.8rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
-.day h2{margin:0;font-size:1.05rem;text-transform:capitalize}
-.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--ln)}
-.tabs button{flex:1;border-radius:0;background:none;color:var(--mut);padding:16px}
-.tabs button.on{color:var(--ac);font-weight:700}
-.item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--ln)}
-.item input[type=checkbox]{width:20px;height:20px;margin:0}
-.item span{flex:1}.item.done span{text-decoration:line-through;color:var(--mut)}
-.item button{background:none;color:var(--mut);padding:4px 8px}
-.row{display:flex;gap:8px}.row input{margin:0}
-.choice{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-.choice button{flex:1;min-width:140px}
-ul{padding-left:20px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planning repas</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-<main id="app"></main>
-<nav class="tabs" id="tabs" hidden>
-<button data-p="plan">📅 Planning</button><button data-p="shop">🛒 Courses</button><button data-p="settings">⚙️ Profil</button>
-</nav>
-<script>
-const SLOTS=[["matin","Matin"],["midi","Midi"],["encas","Encas"],["soir","Soir"]];
-const PHASES=[
-{n:"Règles",d:"Le corps est en phase de repos : on vise le réconfort et le fer.",f:["Viande rouge, lentilles, pois chiches (fer)","Épinards, betterave, brocolis","Agrumes, kiwi (vitamine C pour absorber le fer)","Gingembre, soupes chaudes, bouillons","Chocolat noir, noix, graines de courge (magnésium)","Poissons gras (oméga-3)"]},
-{n:"Folliculaire",d:"L'énergie remonte : aliments frais, légers et riches en protéines.",f:["Œufs, poulet, tofu","Légumes verts, germes, radis","Graines de lin, avoine, quinoa","Fruits rouges, pomme, avocat","Aliments fermentés (kéfir, kimchi, choucroute)","Salades colorées"]},
-{n:"Ovulation",d:"Pic d'énergie : fibres, antioxydants et beaucoup de couleurs.",f:["Légumes crus, salades, poivrons","Fruits rouges, fraises, framboises","Amandes, quinoa","Asperges, courgettes","Poissons, crevettes","Eau, tisanes, fruits riches en eau"]},
-{n:"Lutéale",d:"Les envies arrivent : on mise sur les glucides complexes et le magnésium.",f:["Patate douce, riz complet, avoine","Banane, dattes","Chocolat noir, amandes, graines de courge (magnésium)","Légumes-racines, courge, brocoli","Saumon, œufs","Pois chiches, lentilles"]}];
-const KEY="planning-repas-v1";
-let S=JSON.parse(localStorage.getItem(KEY)||"null")||{profile:null,meals:{},shop:[]};
-let page="plan",off=0,tmp={};
-const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
-const $=s=>document.querySelector(s);
-const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-function weekStart(o){const t=new Date();t.setHours(12,0,0,0);t.setDate(t.getDate()-((t.getDay()-6+7)%7)+o*7);return t}
-function days(o){const s=weekStart(o);return Array.from({length:9},(_,i)=>{const d=new Date(s);d.setDate(s.getDate()+i);return d})}
-function phaseFor(o){const p=S.profile;if(!p||p.sex!=="f"||!p.cycle)return null;
-const w=Math.round((weekStart(o)-new Date(p.since))/6048e5);return((p.idx+w)%4+4)%4}
 
-function render(){
-const p=S.profile;$("#tabs").hidden=!p;
-if(!p)return setup();
-document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.p===page));
-({plan,shop,phase,setup,settings})[page]();
-}
-function setup(){
-page="setup";const a=$("#app");
-if(!tmp.sex){a.innerHTML=`<h1>Bienvenue 👋</h1><p>Tu es :</p><div class="choice"><button onclick="pick('m')">Un homme</button><button onclick="pick('f')">Une femme</button></div>`;return}
-if(tmp.sex==="f"&&tmp.cycle===undefined){a.innerHTML=`<h1>Cycle</h1><p>Tu veux adapter les repas à ton cycle ?</p><div class="choice"><button onclick="cyc(true)">Oui</button><button class="sec" onclick="cyc(false)">Non</button></div>`;return}
-if(tmp.cycle){a.innerHTML=`<h1>Tu en es où ?</h1><div class="choice">${PHASES.map((x,i)=>`<button class="sec" onclick="fin(${i})">${x.n}</button>`).join("")}</div>`;return}
-}
-function pick(s){tmp={sex:s};if(s==="m")fin(null);else setup()}
-function cyc(c){tmp.cycle=c;if(c)setup();else fin(null)}
-function fin(i){S.profile={sex:tmp.sex,cycle:!!tmp.cycle,idx:i||0,since:weekStart(0).toISOString()};tmp={};save();page="plan";render()}
+  <main id="app"></main>
 
-function plan(){
-const ds=days(off),ph=phaseFor(off),fr=d=>d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
-let h=`<div class="nav"><button class="sec" onclick="off--;plan()">←</button><b>${fr(ds[0])} → ${fr(ds[8])}${off===0?"<br><small>Semaine en cours</small>":""}</b><button class="sec" onclick="off++;plan()">→</button></div>`;
-if(ph!==null)h+=`<div class="phase">🌙 <b>Phase : ${PHASES[ph].n}</b><button class="q" onclick="page='phase';tmp.ph=${ph};render()">?</button></div>`;
-const wk=iso(weekStart(off)),dz=(S.desserts||{})[wk]||{};
-h+=`<div class="card"><h2 style="margin:0;font-size:1.05rem">🍰 Dessert de la semaine</h2><div class="slot"><input placeholder="Dessert prévu" value="${esc(dz.t||"")}" oninput="setD('${wk}','t',this.value)"><textarea placeholder="Ingrédients (un par ligne ou séparés par des virgules)" oninput="setD('${wk}','i',this.value)">${esc(dz.i||"")}</textarea></div></div>`;
-h+=`<button style="width:100%;margin-bottom:12px" onclick="toShop()">🛒 Ajouter les ingrédients à la liste de courses</button>`;
-ds.forEach(d=>{const k=iso(d),m=S.meals[k]||{};
-h+=`<div class="card day"><h2>${d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"})}</h2>`;
-SLOTS.forEach(([s,l])=>{const v=m[s]||{};
-h+=`<div class="slot"><label>${l}</label><input placeholder="Plat prévu" value="${esc(v.t||"")}" oninput="setM('${k}','${s}','t',this.value)"><textarea placeholder="Ingrédients (un par ligne ou séparés par des virgules)" oninput="setM('${k}','${s}','i',this.value)">${esc(v.i||"")}</textarea></div>`});
-h+=`</div>`});
-const sc=scrollY;$("#app").innerHTML=h;scrollTo(0,sc);
-}
-function setM(k,s,f,v){S.meals[k]=S.meals[k]||{};S.meals[k][s]=S.meals[k][s]||{};S.meals[k][s][f]=v;save()}
-function toShop(){
-let n=0;const have=new Set(S.shop.map(x=>x.n.toLowerCase()));
-((S.desserts||{})[iso(weekStart(off))]?.i||"").split(/[\n,]/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(!have.has(x.toLowerCase())){have.add(x.toLowerCase());S.shop.push({n:x,d:false});n++}});
-days(off).forEach(d=>{const m=S.meals[iso(d)]||{};SLOTS.forEach(([s])=>{
-(m[s]?.i||"").split(/[\n,]/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(!have.has(x.toLowerCase())){have.add(x.toLowerCase());S.shop.push({n:x,d:false});n++}})})});
-save();page="shop";render();
-}
-function shop(){
-let h=`<h1>🛒 Liste de courses</h1><div class="row card"><input id="new" placeholder="Ajouter un article" onkeydown="if(event.key==='Enter')add()"><button onclick="add()">+</button></div><div class="card">`;
-if(!S.shop.length)h+=`<p style="color:var(--mut)">Rien pour l'instant.</p>`;
-S.shop.forEach((x,i)=>{h+=`<div class="item ${x.d?"done":""}"><input type="checkbox" ${x.d?"checked":""} onchange="S.shop[${i}].d=this.checked;save();shop()"><span>${esc(x.n)}</span><button onclick="S.shop.splice(${i},1);save();shop()">✕</button></div>`});
-h+=`</div>`;if(S.shop.some(x=>x.d))h+=`<button class="sec" onclick="S.shop=S.shop.filter(x=>!x.d);save();shop()">Supprimer les articles cochés</button>`;
-$("#app").innerHTML=h;
-}
-function add(){const v=$("#new").value.trim();if(!v)return;S.shop.push({n:v,d:false});save();shop()}
-function phase(){
-const i=tmp.ph??phaseFor(0)??0,x=PHASES[i];
-$("#app").innerHTML=`<button class="sec" onclick="page='plan';render()">← Retour</button><h1 style="margin-top:12px">🌙 Phase ${x.n}</h1><p>${x.d}</p><div class="card"><b>Aliments recommandés</b><ul>${x.f.map(f=>`<li>${f}</li>`).join("")}</ul></div><button class="sec" onclick="tmp.ph=(${i}+1)%4;phase()">Voir la phase suivante →</button><p style="color:var(--mut);font-size:.85rem;margin-top:16px">Ces conseils sont généraux et ne remplacent pas un avis médical.</p><button class="sec" onclick="page='settings';render()">⚙️ Modifier mon profil</button>`;
-}
-function setD(k,f,v){S.desserts=S.desserts||{};S.desserts[k]=S.desserts[k]||{};S.desserts[k][f]=v;save()}
-function settings(){
-const p=S.profile,cur=phaseFor(0),c=(on)=>on?"":"sec";
-let h=`<h1>⚙️ Profil</h1><div class="card"><b>Je suis</b><div class="choice"><button class="${c(p.sex==="m")}" onclick="setSex('m')">Un homme</button><button class="${c(p.sex==="f")}" onclick="setSex('f')">Une femme</button></div>`;
-if(p.sex==="f"){
-h+=`<b>Adapter à mon cycle ?</b><div class="choice"><button class="${c(p.cycle)}" onclick="setCyc(true)">Oui</button><button class="${c(!p.cycle)}" onclick="setCyc(false)">Non</button></div>`;
-if(p.cycle)h+=`<b>Je suis en phase</b><div class="choice">${PHASES.map((x,i)=>`<button class="${c(cur===i)}" onclick="setPhase(${i})">${x.n}</button>`).join("")}</div>`}
-h+=`</div>`;$("#app").innerHTML=h;
-}
-function setSex(s){S.profile.sex=s;save();settings()}
-function setCyc(v){S.profile.cycle=v;if(v){S.profile.since=weekStart(0).toISOString()}save();settings()}
-function setPhase(i){S.profile.idx=i;S.profile.since=weekStart(0).toISOString();save();settings()}
-document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{page=b.dataset.p;render()});
-render();
-</script>
+  <nav class="tabs" id="tabs" hidden>
+    <button data-p="plan">Planning</button>
+    <button data-p="shop">Courses</button>
+    <button data-p="settings">Profil</button>
+  </nav>
+
+  <script src="script.js"></script>
+
 </body>
 </html>
