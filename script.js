@@ -1,0 +1,1238 @@
+const FB = {
+  apiKey: "AIzaSyD48z9Mqwv89fmr4lKUOCihQEsK-5m9hiI",
+  authDomain: "planning-repas-110806.firebaseapp.com",
+  projectId: "planning-repas-110806",
+  storageBucket: "planning-repas-110806.firebasestorage.app",
+  messagingSenderId: "78004497551",
+  appId: "1:78004497551:web:562151081f1ae969b754fa"
+};
+
+const SLOTS = [
+  ["matin", "Matin"],
+  ["midi", "Midi"],
+  ["encas", "Encas"],
+  ["soir", "Soir"]
+];
+
+const PHASES = [
+  {
+    n: "Règles",
+    d: "Le corps est en phase de repos : on vise le réconfort et le fer.",
+    f: [
+      "Viande rouge, lentilles, pois chiches (fer)",
+      "Épinards, betterave, brocolis",
+      "Agrumes, kiwi (vitamine C pour absorber le fer)",
+      "Gingembre, soupes chaudes, bouillons",
+      "Chocolat noir, noix, graines de courge (magnésium)",
+      "Poissons gras (oméga-3)"
+    ]
+  },
+  {
+    n: "Folliculaire",
+    d: "L'énergie remonte : aliments frais, légers et riches en protéines.",
+    f: [
+      "Œufs, poulet, tofu",
+      "Légumes verts, germes, radis",
+      "Graines de lin, avoine, quinoa",
+      "Fruits rouges, pomme, avocat",
+      "Aliments fermentés (kéfir, kimchi, choucroute)",
+      "Salades colorées"
+    ]
+  },
+  {
+    n: "Ovulation",
+    d: "Pic d'énergie : fibres, antioxydants et beaucoup de couleurs.",
+    f: [
+      "Légumes crus, salades, poivrons",
+      "Fruits rouges, fraises, framboises",
+      "Amandes, quinoa",
+      "Asperges, courgettes",
+      "Poissons, crevettes",
+      "Eau, tisanes, fruits riches en eau"
+    ]
+  },
+  {
+    n: "Lutéale",
+    d: "Les envies arrivent : on mise sur les glucides complexes et le magnésium.",
+    f: [
+      "Patate douce, riz complet, avoine",
+      "Banane, dattes",
+      "Chocolat noir, amandes, graines de courge (magnésium)",
+      "Légumes-racines, courge, brocoli",
+      "Saumon, œufs",
+      "Pois chiches, lentilles"
+    ]
+  }
+];
+
+const KEY = "planning-repas-v1";
+
+let S =
+  JSON.parse(localStorage.getItem(KEY) || "null") || {
+    profile: null,
+    meals: {},
+    shop: []
+  };
+
+S.desserts = S.desserts || {};
+
+const nid = () =>
+  Date.now() + Math.random().toString(36).slice(2, 5);
+
+S.shop.forEach(x => {
+  x.id = x.id || nid();
+});
+
+let page = "plan";
+let off = 0;
+let tmp = {};
+
+const save = () =>
+  localStorage.setItem(KEY, JSON.stringify(S));
+
+const $ = s =>
+  document.querySelector(s);
+
+const esc = t =>
+  String(t).replace(
+    /[&<>"]/g,
+    c =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;"
+      })[c]
+  );
+
+const iso = d =>
+  d.getFullYear() +
+  "-" +
+  String(d.getMonth() + 1).padStart(2, "0") +
+  "-" +
+  String(d.getDate()).padStart(2, "0");
+
+function weekStart(o) {
+  const t = new Date();
+
+  t.setHours(12, 0, 0, 0);
+
+  t.setDate(
+    t.getDate() -
+      ((t.getDay() - 6 + 7) % 7) +
+      o * 7
+  );
+
+  return t;
+}
+
+function days(o) {
+  const s = weekStart(o);
+
+  return Array.from({ length: 9 }, (_, i) => {
+    const d = new Date(s);
+    d.setDate(s.getDate() + i);
+    return d;
+  });
+}
+
+function phaseFor(o) {
+  const p = S.profile;
+
+  if (!p || p.sex !== "f" || !p.cycle) {
+    return null;
+  }
+
+  const w = Math.round(
+    (weekStart(o) - new Date(p.since)) / 6048e5
+  );
+
+  return ((p.idx + w) % 4 + 4) % 4;
+}
+
+
+/* =========================================================
+   FIREBASE
+========================================================= */
+
+let db = null;
+let unsubs = [];
+const pend = {};
+const tm = {};
+
+function fbOn() {
+  if (!db && window.firebase) {
+    firebase.initializeApp(FB);
+    db = firebase.firestore();
+  }
+
+  return !!db && !!S.house;
+}
+
+const ref = n =>
+  db
+    .collection("foyers")
+    .doc(S.house)
+    .collection("data")
+    .doc(n);
+
+function put(n, k, v) {
+  pend[n] = pend[n] || {};
+  pend[n][k] = v;
+
+  clearTimeout(tm[n]);
+
+  tm[n] = setTimeout(
+    () => flush(n),
+    700
+  );
+}
+
+function flush(n) {
+  const o = pend[n];
+
+  pend[n] = {};
+
+  if (o && fbOn()) {
+    ref(n)
+      .set(o, { merge: true })
+      .catch(() => {});
+  }
+}
+
+function shopPut(x) {
+  if (fbOn()) {
+    ref("shop")
+      .set(
+        {
+          [x.id]: {
+            n: x.n,
+            d: x.d
+          }
+        },
+        { merge: true }
+      )
+      .catch(() => {});
+  }
+}
+
+function shopDel(id) {
+  if (fbOn()) {
+    ref("shop")
+      .update({
+        [id]:
+          firebase.firestore.FieldValue.delete()
+      })
+      .catch(() => {});
+  }
+}
+
+function listen() {
+  unsubs.forEach(u => u());
+  unsubs = [];
+
+  if (!fbOn()) return;
+
+  const on = (n, fn) => {
+    unsubs.push(
+      ref(n).onSnapshot(s => {
+        fn({
+          ...(s.data() || {}),
+          ...(pend[n] || {})
+        });
+
+        if (!s.metadata.hasPendingWrites) {
+          sync();
+        }
+      })
+    );
+  };
+
+  on("meals", d => {
+    const m = {};
+
+    for (const k in d) {
+      const [a, b, c] = k.split("_");
+
+      ((m[a] = m[a] || {})[b] =
+        m[a][b] || {})[c] = d[k];
+    }
+
+    S.meals = m;
+  });
+
+  on("desserts", d => {
+    const m = {};
+
+    for (const k in d) {
+      const [a, c] = k.split("_");
+
+      (m[a] = m[a] || {})[c] = d[k];
+    }
+
+    S.desserts = m;
+  });
+
+  on("shop", d => {
+    S.shop = Object.keys(d)
+      .sort()
+      .map(id => ({
+        id,
+        n: d[id].n,
+        d: !!d[id].d
+      }));
+  });
+}
+
+function sync() {
+  save();
+
+  if (page === "plan") {
+    document
+      .querySelectorAll("[data-k]")
+      .forEach(e => {
+        if (e === document.activeElement) return;
+
+        const [a, b, c] =
+          e.dataset.k.split("_");
+
+        const v =
+          (c
+            ? S.meals[a]?.[b]?.[c]
+            : S.desserts[a]?.[b]) || "";
+
+        if (e.value !== v) {
+          e.value = v;
+        }
+      });
+  } else if (page === "shop") {
+    const v = $("#new")?.value;
+    const f =
+      document.activeElement?.id === "new";
+
+    shop();
+
+    if (v) {
+      $("#new").value = v;
+
+      if (f) {
+        $("#new").focus();
+      }
+    }
+  }
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function render() {
+  const p = S.profile;
+
+  $("#tabs").hidden = !p;
+
+  if (!p) {
+    setup();
+    return;
+  }
+
+  document
+    .querySelectorAll("#tabs button")
+    .forEach(b =>
+      b.classList.toggle(
+        "on",
+        b.dataset.p === page
+      )
+    );
+
+  ({
+    plan,
+    shop,
+    phase,
+    setup,
+    settings
+  })[page]();
+}
+
+
+/* =========================================================
+   CONFIGURATION
+========================================================= */
+
+function setup() {
+  page = "setup";
+
+  const a = $("#app");
+
+  if (!tmp.sex) {
+    a.innerHTML = `
+      <h1>Bienvenue 👋</h1>
+
+      <p>Tu es :</p>
+
+      <div class="choice">
+        <button onclick="pick('m')">
+          Un homme
+        </button>
+
+        <button onclick="pick('f')">
+          Une femme
+        </button>
+      </div>
+    `;
+
+    return;
+  }
+
+  if (
+    tmp.sex === "f" &&
+    tmp.cycle === undefined
+  ) {
+    a.innerHTML = `
+      <h1>Cycle</h1>
+
+      <p>
+        Tu veux adapter les repas à ton cycle ?
+      </p>
+
+      <div class="choice">
+        <button onclick="cyc(true)">
+          Oui
+        </button>
+
+        <button class="sec" onclick="cyc(false)">
+          Non
+        </button>
+      </div>
+    `;
+
+    return;
+  }
+
+  if (tmp.cycle) {
+    a.innerHTML = `
+      <h1>Tu en es où ?</h1>
+
+      <div class="choice">
+        ${PHASES.map(
+          (x, i) => `
+            <button
+              class="sec"
+              onclick="fin(${i})"
+            >
+              ${x.n}
+            </button>
+          `
+        ).join("")}
+      </div>
+    `;
+
+    return;
+  }
+}
+
+function pick(s) {
+  tmp = { sex: s };
+
+  if (s === "m") {
+    fin(null);
+  } else {
+    setup();
+  }
+}
+
+function cyc(c) {
+  tmp.cycle = c;
+
+  if (c) {
+    setup();
+  } else {
+    fin(null);
+  }
+}
+
+function fin(i) {
+  S.profile = {
+    sex: tmp.sex,
+    cycle: !!tmp.cycle,
+    idx: i || 0,
+    since: weekStart(0).toISOString()
+  };
+
+  tmp = {};
+
+  save();
+
+  page = "plan";
+
+  render();
+}
+
+
+/* =========================================================
+   PLANNING
+========================================================= */
+
+function plan() {
+  const ds = days(off);
+  const ph = phaseFor(off);
+
+  const fr = d =>
+    d.toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short"
+    });
+
+  let h = `
+    <div class="nav">
+      <button
+        class="sec"
+        onclick="off--;plan()"
+      >
+        ←
+      </button>
+
+      <b>
+        ${fr(ds[0])} → ${fr(ds[8])}
+
+        ${
+          off === 0
+            ? "<br><small>Semaine en cours</small>"
+            : ""
+        }
+      </b>
+
+      <button
+        class="sec"
+        onclick="off++;plan()"
+      >
+        →
+      </button>
+    </div>
+  `;
+
+  if (ph !== null) {
+    h += `
+      <div class="phase">
+        <b>
+          Phase : ${PHASES[ph].n}
+        </b>
+
+        <button
+          class="q"
+          onclick="
+            page='phase';
+            tmp.ph=${ph};
+            render()
+          "
+        >
+          ?
+        </button>
+      </div>
+    `;
+  }
+
+  const wk = iso(weekStart(off));
+  const dz = S.desserts[wk] || {};
+
+  h += `
+    <div class="card">
+
+      <h2 style="margin:0;font-size:1.05rem">
+        Dessert de la semaine
+      </h2>
+
+      <div class="slot">
+
+        <input
+          data-k="${wk}_t"
+          placeholder="Dessert prévu"
+          value="${esc(dz.t || "")}"
+          oninput="
+            setD(
+              '${wk}',
+              't',
+              this.value
+            )
+          "
+        >
+
+        <textarea
+          data-k="${wk}_i"
+          placeholder="Ingrédients (un par ligne ou séparés par des virgules)"
+          oninput="
+            setD(
+              '${wk}',
+              'i',
+              this.value
+            )
+          "
+        >${esc(dz.i || "")}</textarea>
+
+      </div>
+    </div>
+
+    <button
+      style="width:100%;margin-bottom:12px"
+      onclick="toShop()"
+    >
+      Ajouter les ingrédients à la liste de courses
+    </button>
+  `;
+
+  ds.forEach(d => {
+    const k = iso(d);
+    const m = S.meals[k] || {};
+
+    h += `
+      <div class="card day">
+
+        <h2>
+          ${d.toLocaleDateString("fr-FR", {
+            weekday: "long",
+            day: "numeric"
+          })}
+        </h2>
+    `;
+
+    SLOTS.forEach(([s, l]) => {
+      const v = m[s] || {};
+
+      h += `
+        <div class="slot">
+
+          <label>${l}</label>
+
+          <input
+            data-k="${k}_${s}_t"
+            placeholder="Plat prévu"
+            value="${esc(v.t || "")}"
+            oninput="
+              setM(
+                '${k}',
+                '${s}',
+                't',
+                this.value
+              )
+            "
+          >
+
+          <textarea
+            data-k="${k}_${s}_i"
+            placeholder="Ingrédients (un par ligne ou séparés par des virgules)"
+            oninput="
+              setM(
+                '${k}',
+                '${s}',
+                'i',
+                this.value
+              )
+            "
+          >${esc(v.i || "")}</textarea>
+
+        </div>
+      `;
+    });
+
+    h += `</div>`;
+  });
+
+  const sc = scrollY;
+
+  $("#app").innerHTML = h;
+
+  scrollTo(0, sc);
+}
+
+function setM(k, s, f, v) {
+  S.meals[k] = S.meals[k] || {};
+  S.meals[k][s] = S.meals[k][s] || {};
+  S.meals[k][s][f] = v;
+
+  save();
+
+  put(
+    "meals",
+    `${k}_${s}_${f}`,
+    v
+  );
+}
+
+function setD(k, f, v) {
+  S.desserts[k] = S.desserts[k] || {};
+  S.desserts[k][f] = v;
+
+  save();
+
+  put(
+    "desserts",
+    `${k}_${f}`,
+    v
+  );
+}
+
+function toShop() {
+  const have = new Set(
+    S.shop.map(x => x.n.toLowerCase())
+  );
+
+  const lines = [];
+
+  lines.push(
+    S.desserts[
+      iso(weekStart(off))
+    ]?.i || ""
+  );
+
+  days(off).forEach(d => {
+    const m = S.meals[iso(d)] || {};
+
+    SLOTS.forEach(([s]) => {
+      lines.push(m[s]?.i || "");
+    });
+  });
+
+  lines
+    .join("\n")
+    .split(/[\n,]/)
+    .map(x => x.trim())
+    .filter(Boolean)
+    .forEach(n => {
+      if (have.has(n.toLowerCase())) {
+        return;
+      }
+
+      have.add(n.toLowerCase());
+
+      const x = {
+        id: nid(),
+        n,
+        d: false
+      };
+
+      S.shop.push(x);
+
+      shopPut(x);
+    });
+
+  save();
+
+  page = "shop";
+
+  render();
+}
+
+
+/* =========================================================
+   COURSES
+========================================================= */
+
+function shop() {
+  let h = `
+    <h1>🛒 Liste de courses</h1>
+
+    <div class="row card">
+
+      <input
+        id="new"
+        placeholder="Ajouter un article"
+        onkeydown="
+          if(event.key === 'Enter') add()
+        "
+      >
+
+      <button onclick="add()">+</button>
+
+    </div>
+
+    <div class="card">
+  `;
+
+  if (!S.shop.length) {
+    h += `
+      <p style="color:var(--mut)">
+        Rien pour l'instant.
+      </p>
+    `;
+  }
+
+  S.shop.forEach(x => {
+    h += `
+      <div class="item ${x.d ? "done" : ""}">
+
+        <input
+          type="checkbox"
+          ${x.d ? "checked" : ""}
+          onchange="
+            tog(
+              '${x.id}',
+              this.checked
+            )
+          "
+        >
+
+        <span>
+          ${esc(x.n)}
+        </span>
+
+        <button
+          onclick="del('${x.id}')"
+        >
+          ✕
+        </button>
+
+      </div>
+    `;
+  });
+
+  h += `</div>`;
+
+  if (S.shop.some(x => x.d)) {
+    h += `
+      <button
+        class="sec"
+        onclick="clearDone()"
+      >
+        Supprimer les articles cochés
+      </button>
+    `;
+  }
+
+  $("#app").innerHTML = h;
+}
+
+function tog(id, v) {
+  const x = S.shop.find(
+    i => i.id === id
+  );
+
+  if (!x) return;
+
+  x.d = v;
+
+  save();
+
+  shopPut(x);
+
+  shop();
+}
+
+function del(id) {
+  S.shop = S.shop.filter(
+    i => i.id !== id
+  );
+
+  save();
+
+  shopDel(id);
+
+  shop();
+}
+
+function clearDone() {
+  S.shop
+    .filter(x => x.d)
+    .forEach(x => shopDel(x.id));
+
+  S.shop = S.shop.filter(
+    x => !x.d
+  );
+
+  save();
+
+  shop();
+}
+
+function add() {
+  const v = $("#new").value.trim();
+
+  if (!v) return;
+
+  const x = {
+    id: nid(),
+    n: v,
+    d: false
+  };
+
+  S.shop.push(x);
+
+  save();
+
+  shopPut(x);
+
+  shop();
+}
+
+
+/* =========================================================
+   PHASE DU CYCLE
+========================================================= */
+
+function phase() {
+  const i =
+    tmp.ph ?? phaseFor(0) ?? 0;
+
+  const x = PHASES[i];
+
+  $("#app").innerHTML = `
+    <button
+      class="sec"
+      onclick="
+        page='plan';
+        render()
+      "
+    >
+      ← Retour
+    </button>
+
+    <h1 style="margin-top:12px">
+      🌙 Phase ${x.n}
+    </h1>
+
+    <p>
+      ${x.d}
+    </p>
+
+    <div class="card">
+
+      <b>Aliments recommandés</b>
+
+      <ul>
+        ${x.f
+          .map(f => `<li>${f}</li>`)
+          .join("")}
+      </ul>
+
+    </div>
+
+    <button
+      class="sec"
+      onclick="
+        tmp.ph=(${i}+1)%4;
+        phase()
+      "
+    >
+      Voir la phase suivante →
+    </button>
+
+    <p
+      style="
+        color:var(--mut);
+        font-size:.85rem;
+        margin-top:16px
+      "
+    >
+      Ces conseils sont généraux et ne remplacent
+      pas un avis médical.
+    </p>
+
+    <button
+      class="sec"
+      onclick="
+        page='settings';
+        render()
+      "
+    >
+      Modifier mon profil
+    </button>
+  `;
+}
+
+
+/* =========================================================
+   PROFIL + FOYER
+========================================================= */
+
+function settings() {
+  const p = S.profile;
+  const cur = phaseFor(0);
+
+  const c = on =>
+    on ? "" : "sec";
+
+  let h = `
+    <h1>Profil</h1>
+
+    <div class="card">
+
+      <b>Synchronisation</b>
+  `;
+
+  if (S.house) {
+    h += `
+      <p>Code du foyer :</p>
+
+      <p
+        style="
+          font-size:1.4rem;
+          letter-spacing:.1em
+        "
+      >
+        <b>${S.house}</b>
+      </p>
+
+      <p style="color:var(--mut)">
+        Entre ce code sur l'autre téléphone :
+        planning, dessert et courses sont
+        partagés en temps réel.
+      </p>
+
+      <button
+        class="sec"
+        onclick="leave()"
+      >
+        Quitter le foyer
+      </button>
+    `;
+  } else {
+    h += `
+      <p style="color:var(--mut)">
+        Partage le planning avec ton conjoint.
+      </p>
+
+      <button onclick="mk()">
+        Créer un foyer
+      </button>
+
+      <p>
+        ou rejoindre un foyer :
+      </p>
+
+      <div class="row">
+
+        <input
+          id="code"
+          placeholder="Code du foyer"
+        >
+
+        <button onclick="join()">
+          OK
+        </button>
+
+      </div>
+    `;
+  }
+
+  h += `
+    </div>
+
+    <div class="card">
+
+      <b>Je suis</b>
+
+      <div class="choice">
+
+        <button
+          class="${c(p.sex === "m")}"
+          onclick="setSex('m')"
+        >
+          Un homme
+        </button>
+
+        <button
+          class="${c(p.sex === "f")}"
+          onclick="setSex('f')"
+        >
+          Une femme
+        </button>
+
+      </div>
+  `;
+
+  if (p.sex === "f") {
+    h += `
+      <b>Adapter à mon cycle ?</b>
+
+      <div class="choice">
+
+        <button
+          class="${c(p.cycle)}"
+          onclick="setCyc(true)"
+        >
+          Oui
+        </button>
+
+        <button
+          class="${c(!p.cycle)}"
+          onclick="setCyc(false)"
+        >
+          Non
+        </button>
+
+      </div>
+    `;
+
+    if (p.cycle) {
+      h += `
+        <b>Je suis en phase</b>
+
+        <div class="choice">
+          ${PHASES.map(
+            (x, i) => `
+              <button
+                class="${c(cur === i)}"
+                onclick="setPhase(${i})"
+              >
+                ${x.n}
+              </button>
+            `
+          ).join("")}
+        </div>
+      `;
+    }
+  }
+
+  h += `
+    </div>
+  `;
+
+  $("#app").innerHTML = h;
+}
+
+function setSex(s) {
+  S.profile.sex = s;
+
+  save();
+
+  settings();
+}
+
+function setCyc(v) {
+  S.profile.cycle = v;
+
+  if (v) {
+    S.profile.since =
+      weekStart(0).toISOString();
+  }
+
+  save();
+
+  settings();
+}
+
+function setPhase(i) {
+  S.profile.idx = i;
+
+  S.profile.since =
+    weekStart(0).toISOString();
+
+  save();
+
+  settings();
+}
+
+const AL =
+  "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function mk() {
+  S.house =
+    crypto
+      .getRandomValues(
+        new Uint8Array(12)
+      )
+      .reduce(
+        (s, b) =>
+          s + AL[b % 32],
+        ""
+      );
+
+  save();
+
+  if (fbOn()) {
+    const m = {};
+    const d = {};
+
+    for (const k in S.meals) {
+      for (const s in S.meals[k]) {
+        for (const f in S.meals[k][s]) {
+          if (S.meals[k][s][f]) {
+            m[
+              `${k}_${s}_${f}`
+            ] = S.meals[k][s][f];
+          }
+        }
+      }
+    }
+
+    for (const k in S.desserts) {
+      for (const f in S.desserts[k]) {
+        if (S.desserts[k][f]) {
+          d[
+            `${k}_${f}`
+          ] = S.desserts[k][f];
+        }
+      }
+    }
+
+    if (Object.keys(m).length) {
+      ref("meals").set(
+        m,
+        { merge: true }
+      );
+    }
+
+    if (Object.keys(d).length) {
+      ref("desserts").set(
+        d,
+        { merge: true }
+      );
+    }
+
+    S.shop.forEach(x =>
+      shopPut(x)
+    );
+  }
+
+  listen();
+
+  settings();
+}
+
+function join() {
+  const c =
+    $("#code")
+      .value
+      .trim()
+      .toUpperCase();
+
+  if (c.length < 6) return;
+
+  S.house = c;
+
+  save();
+
+  listen();
+
+  settings();
+}
+
+function leave() {
+  unsubs.forEach(u => u());
+
+  unsubs = [];
+
+  S.house = null;
+
+  save();
+
+  settings();
+}
+
+
+/* =========================================================
+   NAVIGATION INITIALE
+========================================================= */
+
+document
+  .querySelectorAll("#tabs button")
+  .forEach(b => {
+    b.onclick = () => {
+      page = b.dataset.p;
+      render();
+    };
+  });
+
+render();
+
+listen();
