@@ -8,9 +8,7 @@ const FB = {
 };
 
 const SLOTS = [
-  ["matin", "Matin"],
   ["midi", "Midi"],
-  ["encas", "Encas"],
   ["soir", "Soir"]
 ];
 
@@ -539,6 +537,8 @@ function plan() {
   const wk = iso(weekStart(off));
   const dz = S.desserts[wk] || {};
 
+  h += weeklyCard(wk + "b", "Petit déjeuner de la semaine", "Petit déjeuner prévu");
+
   h += `
     <div class="card">
 
@@ -660,6 +660,37 @@ function plan() {
   scrollTo(0, sc);
 }
 
+function weeklyCard(k, titre, ph) {
+  const z = S.desserts[k] || {};
+
+  return `
+    <div class="card">
+      <h2 style="margin:0;font-size:1.05rem">${titre}</h2>
+
+      <div class="slot">
+        <input
+          data-k="${k}_t"
+          placeholder="${ph}"
+          value="${esc(z.t || "")}"
+          oninput="setD('${k}','t',this.value)"
+        >
+
+        <textarea
+          data-k="${k}_i"
+          placeholder="Ingrédients (un par ligne ou séparés par des virgules)"
+          oninput="setD('${k}','i',this.value)"
+        >${esc(z.i || "")}</textarea>
+
+        <div
+          class="lk"
+          data-l="${k}_l"
+          data-v="${esc(z.l || "")}"
+        >${linkHTML(k + "_l", z.l)}</div>
+      </div>
+    </div>
+  `;
+}
+
 function setM(k, s, f, v) {
   S.meals[k] = S.meals[k] || {};
   S.meals[k][s] = S.meals[k][s] || {};
@@ -698,6 +729,10 @@ function toShop() {
     S.desserts[
       iso(weekStart(off))
     ]?.i || ""
+  );
+
+  lines.push(
+    S.desserts[iso(weekStart(off)) + "b"]?.i || ""
   );
 
   days(off).forEach(d => {
@@ -1351,7 +1386,8 @@ function recettes() {
     midi: "Midi",
     encas: "Encas",
     soir: "Soir",
-    dessert: "Dessert de la semaine"
+    dessert: "Dessert de la semaine",
+    petitdej: "Petit déjeuner de la semaine"
   };
 
   const L = [];
@@ -1367,7 +1403,14 @@ function recettes() {
   for (const k in S.desserts) {
     const x = S.desserts[k];
 
-    if (x.l) L.push({ d: k, s: "dessert", t: x.t, l: x.l });
+    if (x.l) {
+      L.push({
+        d: k.replace(/b$/, ""),
+        s: k.endsWith("b") ? "petitdej" : "dessert",
+        t: x.t,
+        l: x.l
+      });
+    }
   }
 
   L.sort((a, b) => (a.d < b.d ? 1 : -1));
@@ -1397,7 +1440,7 @@ function recettes() {
       h += `
         <div class="card rec" data-s="${esc((titre + " " + host + " " + NOMS[x.s]).toLowerCase())}">
           <b>${esc(titre)}</b><br>
-          <small>${NOMS[x.s]} · ${x.s === "dessert" ? "semaine du " : ""}${date} · ${esc(host)}</small>
+          <small>${NOMS[x.s]} · ${x.s === "dessert" || x.s === "petitdej" ? "semaine du " : ""}${date} · ${esc(host)}</small>
           <div class="lk"><a href="${esc(x.l)}" target="_blank" rel="noopener">Ouvrir la recette</a></div>
         </div>
       `;
