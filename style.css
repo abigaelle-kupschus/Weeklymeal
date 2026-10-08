@@ -254,3 +254,21 @@ small {
   background: var(--ac);
   color: white;
 }
+
+.lk {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lk a {
+  color: var(--ac);
+  font-weight: 600;
+}
+
+.lk button {
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}

@@ -305,6 +305,8 @@ function sync() {
           e.value = v;
         }
       });
+
+    refreshLinks();
   } else if (page === "shop") {
     const v = $("#new")?.value;
     const f =
@@ -351,7 +353,8 @@ function render() {
     shop,
     phase,
     setup,
-    settings
+    settings,
+    recettes
   })[page]();
 }
 
@@ -570,6 +573,12 @@ function plan() {
           "
         >${esc(dz.i || "")}</textarea>
 
+        <div
+          class="lk"
+          data-l="${wk}_l"
+          data-v="${esc(dz.l || "")}"
+        >${linkHTML(wk + "_l", dz.l)}</div>
+
       </div>
     </div>
 
@@ -630,6 +639,12 @@ function plan() {
               )
             "
           >${esc(v.i || "")}</textarea>
+
+          <div
+            class="lk"
+            data-l="${k}_${s}_l"
+            data-v="${esc(v.l || "")}"
+          >${linkHTML(k + "_" + s + "_l", v.l)}</div>
 
         </div>
       `;
@@ -1223,6 +1238,183 @@ function leave() {
 /* =========================================================
    NAVIGATION INITIALE
 ========================================================= */
+
+/* =========================================================
+   LIENS DE RECETTES
+========================================================= */
+
+function getLink(key) {
+  const [a, b, c] = key.split("_");
+
+  return (
+    c
+      ? S.meals[a]?.[b]?.[c]
+      : S.desserts[a]?.[b]
+  ) || "";
+}
+
+function cleanUrl(u) {
+  u = u.trim();
+
+  if (!u) return "";
+
+  if (!/^https?:\/\//i.test(u)) {
+    u = "https://" + u;
+  }
+
+  try {
+    const x = new URL(u);
+
+    return /^https?:$/.test(x.protocol)
+      ? x.href
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function linkHTML(key, val) {
+  if (val) {
+    return `
+      <a href="${esc(val)}" target="_blank" rel="noopener">Voir la recette</a>
+      <button class="sec" onclick="editLink('${key}')">Modifier</button>
+    `;
+  }
+
+  return `
+    <button class="sec" onclick="editLink('${key}')">
+      Ajouter un lien de recette
+    </button>
+  `;
+}
+
+function linkBox(key) {
+  return document.querySelector(`[data-l="${key}"]`);
+}
+
+function editLink(key) {
+  const c = linkBox(key);
+
+  c.innerHTML = `
+    <div class="row" style="width:100%">
+      <input
+        type="url"
+        placeholder="Colle le lien de la recette"
+        value="${esc(getLink(key))}"
+      >
+      <button onclick="saveLink('${key}')">OK</button>
+    </div>
+  `;
+
+  c.querySelector("input").focus();
+}
+
+function saveLink(key) {
+  const c = linkBox(key);
+  const input = c.querySelector("input");
+  const raw = input.value.trim();
+  const url = cleanUrl(raw);
+
+  if (raw && !url) {
+    input.style.borderColor = "crimson";
+    return;
+  }
+
+  const [a, b, d] = key.split("_");
+
+  if (d) {
+    setM(a, b, "l", url);
+  } else {
+    setD(a, "l", url);
+  }
+
+  c.dataset.v = url;
+  c.innerHTML = linkHTML(key, url);
+}
+
+function refreshLinks() {
+  document.querySelectorAll("[data-l]").forEach(c => {
+    if (c.querySelector("input")) return;
+
+    const v = getLink(c.dataset.l);
+
+    if (c.dataset.v !== v) {
+      c.dataset.v = v;
+      c.innerHTML = linkHTML(c.dataset.l, v);
+    }
+  });
+}
+
+function recettes() {
+  const NOMS = {
+    matin: "Matin",
+    midi: "Midi",
+    encas: "Encas",
+    soir: "Soir",
+    dessert: "Dessert de la semaine"
+  };
+
+  const L = [];
+
+  for (const k in S.meals) {
+    for (const s in S.meals[k]) {
+      const x = S.meals[k][s];
+
+      if (x.l) L.push({ d: k, s, t: x.t, l: x.l });
+    }
+  }
+
+  for (const k in S.desserts) {
+    const x = S.desserts[k];
+
+    if (x.l) L.push({ d: k, s: "dessert", t: x.t, l: x.l });
+  }
+
+  L.sort((a, b) => (a.d < b.d ? 1 : -1));
+
+  let h = `<h1>Recettes</h1>`;
+
+  if (!L.length) {
+    h += `<p style="color:var(--mut)">Aucun lien pour l'instant. Ajoute-en depuis le planning avec « Ajouter un lien de recette ».</p>`;
+  } else {
+    h += `<input placeholder="Rechercher une recette…" oninput="filterRec(this.value)" style="margin-bottom:12px">`;
+
+    L.forEach(x => {
+      const date = new Date(x.d + "T12:00:00").toLocaleDateString("fr-FR", {
+        weekday: "short",
+        day: "numeric",
+        month: "short"
+      });
+
+      let host = "";
+
+      try {
+        host = new URL(x.l).hostname.replace(/^www\./, "");
+      } catch {}
+
+      const titre = x.t || host;
+
+      h += `
+        <div class="card rec" data-s="${esc((titre + " " + host + " " + NOMS[x.s]).toLowerCase())}">
+          <b>${esc(titre)}</b><br>
+          <small>${NOMS[x.s]} · ${x.s === "dessert" ? "semaine du " : ""}${date} · ${esc(host)}</small>
+          <div class="lk"><a href="${esc(x.l)}" target="_blank" rel="noopener">Ouvrir la recette</a></div>
+        </div>
+      `;
+    });
+  }
+
+  $("#app").innerHTML = h;
+}
+
+function filterRec(q) {
+  q = q.trim().toLowerCase();
+
+  document.querySelectorAll(".rec").forEach(c => {
+    c.style.display = c.dataset.s.includes(q) ? "" : "none";
+  });
+}
+
 
 document
   .querySelectorAll("#tabs button")
