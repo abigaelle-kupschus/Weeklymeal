@@ -778,6 +778,65 @@ function toShop() {
    COURSES
 ========================================================= */
 
+/* =========================================================
+   CATÉGORIES AUTOMATIQUES DE LA LISTE DE COURSES
+========================================================= */
+
+const CAT_ORDER = [
+  "Fruits & légumes",
+  "Viandes, poissons & protéines",
+  "Produits laitiers & œufs",
+  "Féculents & pain",
+  "Épicerie",
+  "Boissons",
+  "Surgelés",
+  "Autre"
+];
+
+/* L'ordre de cette liste compte : la première catégorie qui
+   correspond gagne. Un "$" à la fin = mot exact. */
+const CAT_RULES = [
+  ["Surgelés",
+    "surgel|congel|sorbet|nugget|creme glacee|pizza"],
+  ["Boissons",
+    "jus|soda|limonade|biere|vin$|cidre|cafe|the$|tisane|eau$|coca|boisson"],
+  ["Épicerie",
+    "lait de coco|creme de coco|lait de soja|lait d'amande|lait d'avoine|lait vegetal|beurre de|pate a tartiner|pate feuilletee|pate brisee|pate sablee|pate a tarte|pate a pizza|sucre|sel$|poivre|epice|cannelle|curry|paprika|cumin|curcuma|vanille|levure|bicarbonate|huile|vinaigre|moutarde|ketchup|mayonnaise|sauce|bouillon|concentre|coulis|tomates pelees|tomate concassee|passata|conserve|en boite|olive|cornichon|capre|chocolat|cacao|nutella|confiture|miel|sirop|compote|biscuit|gateau|chips|cereale|muesli|granola|noix|amande|noisette|cacahuete|pistache|graine|datte|raisins secs|fruits secs|tahini|puree de|cube|fond de|maizena|gelatine|agar"],
+  ["Produits laitiers & œufs",
+    "lait$|laitier|oeuf|yaourt|yogourt|fromage|beurre|creme|mozzarella|parmesan|emmental|gruyere|feta|ricotta|mascarpone|skyr|chevre|comte|camembert|brie|raclette|kefir|chantilly|margarine|burrata|cheddar|reblochon|boursin|philadelphia|faisselle|petit suisse"],
+  ["Viandes, poissons & protéines",
+    "poulet|boeuf|porc|veau|agneau|dinde|jambon|lardon|bacon|saucisse|merguez|steak|viande|hache|canard|saumon|thon|cabillaud|poisson|crevette|moule|sardine|maquereau|colin|truite|lieu$|chorizo|saucisson|fruits de mer|escalope|filet|gambas|calamar|poulpe|dorade|merlan|surimi|cuisse|roti|rillette|foie|magret|charcuterie|tofu|tempeh|seitan"],
+  ["Féculents & pain",
+    "pate$|pates|spaghetti|tagliatelle|macaroni|penne|fusilli|coquillette|lasagne|nouille|vermicelle|ravioli|tortellini|gnocchi|riz|semoule|boulgour|quinoa|ble$|couscous|pomme de terre|pommes de terre|patate|pain|baguette|brioche|tortilla|wrap|galette|farine|flocons|avoine|polenta|lentille|pois chiche|haricot rouge|haricots rouges|haricot blanc|haricots blancs|feve|biscotte|blini|crepe|bagel|croissant|millet|sarrasin|epeautre|orge|pois casses|fecule"],
+  ["Fruits & légumes",
+    "fruit|legume|pomme|poire|banane|orange|citron|clementine|mandarine|pamplemousse|kiwi|fraise|framboise|myrtille|cerise|raisin|peche|abricot|prune|melon|pasteque|ananas|mangue|avocat|figue|salade|laitue|roquette|mache|epinard|tomate|concombre|courgette|aubergine|poivron|piment|carotte|oignon|echalote|ail$|poireau|champignon|chou|brocoli|haricot vert|haricots verts|petit pois|celeri|fenouil|radis|betterave|navet|panais|courge|potiron|butternut|citrouille|asperge|artichaut|endive|persil|coriandre|basilic|menthe|ciboulette|thym|romarin|gingembre|herbe|mais$"]
+].map(([c, p]) => [
+  c,
+  new RegExp(
+    "(^|[^a-z])(?:" +
+      p
+        .split("|")
+        .map(t => (t.endsWith("$") ? t.slice(0, -1) + "(?![a-z])" : t))
+        .join("|") +
+      ")"
+  )
+]);
+
+function catOf(nom) {
+  const t = nom
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/œ/g, "oe")
+    .replace(/[’]/g, "'");
+
+  for (const [c, re] of CAT_RULES) {
+    if (re.test(t)) return c;
+  }
+
+  return "Autre";
+}
+
 function shop() {
   let h = `
     <h1>🛒 Liste de courses</h1>
@@ -807,33 +866,40 @@ function shop() {
     `;
   }
 
+  const groupes = {};
+
   S.shop.forEach(x => {
-    h += `
-      <div class="item ${x.d ? "done" : ""}">
+    const c = catOf(x.n);
 
-        <input
-          type="checkbox"
-          ${x.d ? "checked" : ""}
-          onchange="
-            tog(
-              '${x.id}',
-              this.checked
-            )
-          "
-        >
+    (groupes[c] = groupes[c] || []).push(x);
+  });
 
-        <span>
-          ${esc(x.n)}
-        </span>
+  CAT_ORDER.forEach(c => {
+    const items = (groupes[c] || [])
+      .slice()
+      .sort((a, b) => (a.d ? 1 : 0) - (b.d ? 1 : 0));
 
-        <button
-          onclick="del('${x.id}')"
-        >
-          ✕
-        </button>
+    if (!items.length) return;
 
-      </div>
-    `;
+    h += `<div class="cat">${c}</div>`;
+
+    items.forEach(x => {
+      h += `
+        <div class="item ${x.d ? "done" : ""}">
+
+          <input
+            type="checkbox"
+            ${x.d ? "checked" : ""}
+            onchange="tog('${x.id}', this.checked)"
+          >
+
+          <span>${esc(x.n)}</span>
+
+          <button onclick="del('${x.id}')">✕</button>
+
+        </div>
+      `;
+    });
   });
 
   h += `</div>`;

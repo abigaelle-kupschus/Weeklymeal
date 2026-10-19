@@ -272,3 +272,16 @@ small {
   padding: 6px 10px;
   font-size: 0.9rem;
 }
+
+.cat {
+  margin: 16px 0 2px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ac);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card > .cat:first-child {
+  margin-top: 0;
+}
