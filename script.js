@@ -785,31 +785,79 @@ function toShop() {
 const CAT_ORDER = [
   "Fruits & légumes",
   "Viandes, poissons & protéines",
+  "Charcuterie & traiteur",
   "Produits laitiers & œufs",
   "Féculents & pain",
-  "Épicerie",
+  "Épicerie salée",
+  "Épicerie sucrée & petit-déj",
+  "Produits du monde",
+  "Apéro & snacks",
   "Boissons",
+  "Alcool",
   "Surgelés",
+  "Animaux",
+  "Hygiène & beauté",
+  "Entretien & maison",
+  "Pharmacie & santé",
   "Autre"
 ];
 
-/* L'ordre de cette liste compte : la première catégorie qui
-   correspond gagne. Un "$" à la fin = mot exact. */
+/* L'ordre de cette liste compte : la première règle qui
+   correspond gagne. Un "$" à la fin d'un mot = mot exact.
+   Pour ajouter un mot : ajoute-le dans la bonne ligne,
+   séparé par "|" (sans accents, en minuscules). */
 const CAT_RULES = [
+  ["Animaux",
+    "litiere|croquette|patee|friandises pour|friandise chat|friandise chien|os a macher|pour chat|pour chien|pour chiot|pour chaton|chat$|chien$|chiot|chaton|whiskas|felix|purina|royal canin|pedigree|sheba|friskies|perfect fit|churu|catsan|gamelle|griffoir|herbe a chat|laisse|harnais|antipuce|anti-puce|vermifuge|pipette|graines pour oiseaux|nourriture pour|foin pour|copeaux|sac a crottes|sacs a crottes|sachet fraicheur|sachets fraicheur"],
+
+  ["Alcool",
+    "alcool|malibu|malibou|rhum|rum$|vodka|whisky|whiskey|gin$|tequila|pastis|ricard|champagne|prosecco|cremant|biere|vin$|cidre|sangria|cocktail|liqueur|baileys|get 27|get27|get 31|cointreau|amaretto|porto$|vermouth|aperol|spritz|martini|jagermeister|jager|cognac|armagnac|calvados|eau de vie|eaux de vie|digestif|limoncello|soju|sake$|riesling|gewurz|pinot|sylvaner|muscat|chardonnay|merlot|syrah|bordeaux|bourgogne|cotes du rhone|kronenbourg|1664|heineken|desperados|corona|leffe|guinness|ipa$|panache|kir$"],
+
+  ["Pharmacie & santé",
+    "pansement|doliprane|paracetamol|ibuprofene|aspirine|spasfon|medicament|compresse|antiseptique|biseptine|betadine|eosine|serum physiologique|thermometre|vitamine|magnesium|complement|probiotique|arnica|bandage|collyre|spray nasal|preservatif|sparadrap|strapping|gel hydroalcoolique|hydroalcoolique|pharmacie"],
+
+  ["Hygiène & beauté",
+    "shampoing|shampooing|apres-shampoing|apres shampoing|gel douche|savon|dentifrice|brosse a dents|bain de bouche|fil dentaire|deodorant|rasoir|mousse a raser|coton|demaquillant|eau micellaire|serum|masque|creme hydratante|creme visage|creme solaire|creme mains|creme pour les mains|creme corps|creme de jour|creme de nuit|creme depilatoire|creme anti|baume|vernis|dissolvant|parfum|maquillage|mascara|fond de teint|rouge a levres|gloss|eyeliner|tampon|serviette hygienique|serviettes hygieniques|protege-slip|proteges-slips|protection hygienique|protections hygieniques|coupe menstruelle|culotte menstruelle|epilat|cire depilatoire|lingette demaquillante|lingettes demaquillantes|lingettes bebe|lait corporel|lait demaquillant|lait solaire|huile de massage|huile corps|gommage|exfoli|lotion|tonique|nettoyant visage|stick levres|karite|papier toilette|papier hygienique|pq$|mouchoir|soin|hygiene|brosse a cheveux|peigne|pince a cheveux"],
+
+  ["Entretien & maison",
+    "eponge|liquide vaisselle|produit vaisselle|lessive|adoucissant|sac poubelle|sacs poubelle|essuie-tout|essuie tout|sopalin|lave-vaisselle|lave vaisselle|pastilles lave|tablette lave|javel|nettoyant|degraissant|desinfectant|multi-surface|serpillere|balai|vadrouille|pelle|lingette|gants|gant de|film alimentaire|film etirable|papier alu|papier aluminium|papier cuisson|papier sulfurise|sac congelation|sacs congelation|sac de congelation|sacs de congelation|boite hermetique|bougie|allumette|briquet|ampoule|pile$|piles$|vinaigre blanc|detartrant|anticalcaire|desodorisant|insecticide|torchon|serviette en papier|serviettes en papier|nappe|gobelet|assiette en carton|couverts jetables|paille$|pailles|produit menager|spray|cire meuble|cirage|colle$|scotch|ruban adhesif"],
+
+  /* Cas particuliers à traiter avant les catégories larges */
+  ["Épicerie salée",
+    "en boite|en conserve|conserve|boite de|bocal|lait de coco|creme de coco|lait de soja|lait d'amande|lait d'avoine|lait vegetal|boisson vegetale|beurre de|pate feuilletee|pate brisee|pate sablee|pate a tarte|pate a pizza|sauce tomate|concentre de tomate|tomates pelees|tomate concassee|coulis de tomate|passata|bouillon|vinaigre|huile"],
+
   ["Surgelés",
-    "surgel|congel|sorbet|nugget|creme glacee|pizza"],
+    "surgel|congel|sorbet|nugget|creme glacee|glace a la|glace vanille|glace chocolat|cornet|magnum|esquimau|bac de glace|pizza|frites$|poelee"],
+
+  ["Produits du monde",
+    "nem$|nems|samoussa|samosa|bouchee vapeur|gyoza|raviolis chinois|dim sum|bao$|sushi|maki|nori|wasabi|miso|kimchi|feuille de riz|feuilles de riz|galette de riz|galettes de riz|papier de riz|nouilles chinoises|nouilles de riz|nouilles udon|udon|soba|ramen|pad thai|vermicelles de riz|vermicelle de riz|riz sushi|riz gluant|riz thai|vinaigre de riz|mirin|dashi|panko|tempura|algue|wakame|sauce soja|teriyaki|sriracha|nuoc mam|sauce piquante|sambal|harissa|tajine|falafel|houmous|hummus|tzatziki|pita|naan|chapati|tortilla|fajita|taco|burrito|nachos|guacamole|salsa|jalapeno|chili$|pate de curry|curry vert|curry rouge|pate de piment|galanga|citronnelle|combava|tamarin|garam masala|ras el hanout|zaatar|sumac|kebab|doner|gyros|moussaka|dolma|feuille de brick|feuilles de brick|brick$|pate de sesame|halva|loukoum|baklava|antipasti|wok"],
+
   ["Boissons",
-    "jus|soda|limonade|biere|vin$|cidre|cafe|the$|tisane|eau$|coca|boisson"],
-  ["Épicerie",
-    "lait de coco|creme de coco|lait de soja|lait d'amande|lait d'avoine|lait vegetal|beurre de|pate a tartiner|pate feuilletee|pate brisee|pate sablee|pate a tarte|pate a pizza|sucre|sel$|poivre|epice|cannelle|curry|paprika|cumin|curcuma|vanille|levure|bicarbonate|huile|vinaigre|moutarde|ketchup|mayonnaise|sauce|bouillon|concentre|coulis|tomates pelees|tomate concassee|passata|conserve|en boite|olive|cornichon|capre|chocolat|cacao|nutella|confiture|miel|sirop|compote|biscuit|gateau|chips|cereale|muesli|granola|noix|amande|noisette|cacahuete|pistache|graine|datte|raisins secs|fruits secs|tahini|puree de|cube|fond de|maizena|gelatine|agar"],
+    "jus|soda|limonade|eau$|eau gazeuse|eau petillante|cafe|the$|tisane|infusion|coca|cola|pepsi|fanta|sprite|orangina|schweppes|ice tea|ice-tea|red bull|redbull|boisson|smoothie|nectar|diabolo|perrier|evian|volvic|badoit|san pellegrino|capsule|dosette|nespresso|senseo|chicoree"],
+
+  ["Apéro & snacks",
+    "apericube|aperitif|apero|chips|tuc|cracker|bretzel|cacahuetes|pistaches|noix de cajou|cajou|amandes salees|mini saucisse|popcorn|mais souffle|gressin|tortilla chips|doritos|pringles|croustille|mini toast|tapenade|petits fours|bouchees|cubes apero|biscuits apero|biscuit apero"],
+
+  ["Charcuterie & traiteur",
+    "jambon|lardon|bacon|saucisson|chorizo|saucisse seche|rosette|jambonneau|pate de campagne|pate de foie|rillette|terrine|mortadelle|salami|coppa|bresaola|speck|foie gras|quiche|taboule|salade composee|traiteur|plat prepare|plats prepares|cordon bleu|tarte salee|knack|knacki|boudin|diot"],
+
   ["Produits laitiers & œufs",
-    "lait$|laitier|oeuf|yaourt|yogourt|fromage|beurre|creme|mozzarella|parmesan|emmental|gruyere|feta|ricotta|mascarpone|skyr|chevre|comte|camembert|brie|raclette|kefir|chantilly|margarine|burrata|cheddar|reblochon|boursin|philadelphia|faisselle|petit suisse"],
+    "lait$|laitier|oeuf|yaourt|yogourt|fromage|beurre|creme|mozzarella|parmesan|emmental|gruyere|feta|ricotta|mascarpone|skyr|chevre|comte|camembert|brie|raclette|kefir|chantilly|margarine|burrata|cheddar|reblochon|boursin|philadelphia|faisselle|petit suisse|munster|maroilles|babybel|vache qui rit|gouda|edam|roquefort|bleu d'auvergne|cancoillotte"],
+
   ["Viandes, poissons & protéines",
-    "poulet|boeuf|porc|veau|agneau|dinde|jambon|lardon|bacon|saucisse|merguez|steak|viande|hache|canard|saumon|thon|cabillaud|poisson|crevette|moule|sardine|maquereau|colin|truite|lieu$|chorizo|saucisson|fruits de mer|escalope|filet|gambas|calamar|poulpe|dorade|merlan|surimi|cuisse|roti|rillette|foie|magret|charcuterie|tofu|tempeh|seitan"],
+    "poulet|boeuf|porc|veau|agneau|dinde|saucisse|merguez|steak|viande|hache|canard|lapin|pintade|caille|cheval|gibier|cotelette|cote de|travers|ribs|rumsteck|entrecote|bavette|onglet|faux-filet|escalope|blanc de poulet|blancs de poulet|aiguillette|brochette|boulette|chair a saucisse|gigot|epaule|jarret|osso buco|paleron|joue|andouillette|magret|cuisse|roti|filet|saumon|thon|cabillaud|merlu|lieu$|julienne|sole$|raie|turbot|loup|daurade|dorade|sandre|perche|lotte|rouget|hareng|anchois|truite|maquereau|sardine|colin|merlan|poisson|crevette|gambas|langoustine|homard|crabe|tourteau|huitre|moule|coque|palourde|saint-jacques|saint jacques|noix de saint|calamar|encornet|seiche|poulpe|fruits de mer|surimi|tofu|tempeh|seitan|steak vegetal|proteine|whey"],
+
   ["Féculents & pain",
-    "pate$|pates|spaghetti|tagliatelle|macaroni|penne|fusilli|coquillette|lasagne|nouille|vermicelle|ravioli|tortellini|gnocchi|riz|semoule|boulgour|quinoa|ble$|couscous|pomme de terre|pommes de terre|patate|pain|baguette|brioche|tortilla|wrap|galette|farine|flocons|avoine|polenta|lentille|pois chiche|haricot rouge|haricots rouges|haricot blanc|haricots blancs|feve|biscotte|blini|crepe|bagel|croissant|millet|sarrasin|epeautre|orge|pois casses|fecule"],
+    "pates|spaghetti|tagliatelle|macaroni|penne|fusilli|coquillette|lasagne|nouille|vermicelle|ravioli|tortellini|gnocchi|riz|semoule|boulgour|quinoa|ble$|couscous|pomme de terre|pommes de terre|patate|pain|baguette|brioche|wrap|galette|farine|flocons|avoine|polenta|lentille|pois chiche|haricot rouge|haricots rouges|haricot blanc|haricots blancs|feve|biscotte|blini|crepe|bagel|croissant|chocolatine|viennoiserie|millet|sarrasin|epeautre|orge|pois casses|fecule"],
+
+  ["Épicerie salée",
+    "olive|cornichon|capre|sauce|moutarde|ketchup|mayonnaise|sel$|poivre|epice|cannelle|curry|paprika|cumin|curcuma|herbes de provence|origan|laurier|muscade|safran|bicarbonate|levure|maizena|gelatine|agar|cube|fond de|puree de|pesto|vinaigrette|chapelure|aromate|ail en poudre|oignon en poudre|coulis|concentre|sel fin|gros sel|fleur de sel"],
+
+  ["Épicerie sucrée & petit-déj",
+    "sucre|vanille|cacao|chocolat|nutella|pate a tartiner|confiture|miel|sirop|compote|biscuit|gateau|cereale|muesli|granola|speculoos|madeleine|cookie|barre|noix|amande|noisette|graine|datte|raisins secs|fruits secs|fruits seches|pruneau|cranberr|pepite|bonbon|chewing|sucette|reglisse|guimauve|marshmallow|pate d'amande|caramel|colorant alimentaire|arome|flan|creme dessert|lait concentre|gourde|petit dejeuner|petit-dejeuner|pain d'epices"],
+
   ["Fruits & légumes",
-    "fruit|legume|pomme|poire|banane|orange|citron|clementine|mandarine|pamplemousse|kiwi|fraise|framboise|myrtille|cerise|raisin|peche|abricot|prune|melon|pasteque|ananas|mangue|avocat|figue|salade|laitue|roquette|mache|epinard|tomate|concombre|courgette|aubergine|poivron|piment|carotte|oignon|echalote|ail$|poireau|champignon|chou|brocoli|haricot vert|haricots verts|petit pois|celeri|fenouil|radis|betterave|navet|panais|courge|potiron|butternut|citrouille|asperge|artichaut|endive|persil|coriandre|basilic|menthe|ciboulette|thym|romarin|gingembre|herbe|mais$"]
+    "fruit|legume|pomme|poire|banane|orange|citron|clementine|mandarine|pamplemousse|kiwi|fraise|framboise|myrtille|cerise|raisin|peche|nectarine|abricot|prune|mirabelle|quetsche|melon|pasteque|ananas|mangue|papaye|goyave|litchi|grenade|physalis|fruit de la passion|cassis|groseille|mure|rhubarbe|coing|kaki|figue|avocat|lime|yuzu|salade|laitue|roquette|mache|mesclun|jeunes pousses|pousses|germes|batavia|frisee|scarole|epinard|blette|bette|oseille|cresson|tomate|concombre|courgette|aubergine|poivron|piment|carotte|oignon|cebette|echalote|ail$|poireau|champignon|chou|kale|pak choi|bok choy|brocoli|haricot vert|haricots verts|haricots plats|edamame|petit pois|pois gourmands|mange-tout|celeri|fenouil|radis|betterave|navet|panais|rutabaga|topinambour|salsifis|courge|potiron|butternut|citrouille|patisson|asperge|artichaut|endive|igname|manioc|plantain|persil|coriandre|basilic|menthe|ciboulette|thym|romarin|aneth|estragon|cerfeuil|sauge|gingembre|herbe|mais$"]
 ].map(([c, p]) => [
   c,
   new RegExp(
