@@ -285,3 +285,7 @@ small {
 .card > .cat:first-child {
   margin-top: 0;
 }
+
+.item span {
+  cursor: pointer;
+}

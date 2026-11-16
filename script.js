@@ -200,16 +200,13 @@ function flush(n) {
 
 function shopPut(x) {
   if (fbOn()) {
+    const o = { n: x.n, d: !!x.d };
+
+    if (x.u) o.u = x.u;
+    if (x.s) o.s = x.s;
+
     ref("shop")
-      .set(
-        {
-          [x.id]: {
-            n: x.n,
-            d: x.d
-          }
-        },
-        { merge: true }
-      )
+      .set({ [x.id]: o }, { mergeFields: [x.id] })
       .catch(() => {});
   }
 }
@@ -277,7 +274,9 @@ function listen() {
       .map(id => ({
         id,
         n: d[id].n,
-        d: !!d[id].d
+        d: !!d[id].d,
+        u: d[id].u || "",
+        s: d[id].s || null
       }));
   });
 }
@@ -718,22 +717,80 @@ function setD(k, f, v) {
   );
 }
 
-function toShop() {
-  const have = new Set(
-    S.shop.map(x => x.n.toLowerCase())
+/* ---------- Quantités : additionne les ingrédients identiques ---------- */
+
+const UNITES = {
+  kg: ["g", 1000],
+  g: ["g", 1],
+  mg: ["g", 0.001],
+  l: ["ml", 1000],
+  dl: ["ml", 100],
+  cl: ["ml", 10],
+  ml: ["ml", 1]
+};
+
+function parseIng(ligne) {
+  ligne = ligne.trim();
+
+  if (!ligne) return null;
+
+  const m = ligne.match(
+    /^(\d+(?:[.,]\d+)?)\s*(kg|mg|g|ml|cl|dl|l)?(?![a-zà-ÿ])\s*(?:de |d'|du |des )?(.+)$/i
   );
 
+  if (m && /^[a-zà-ÿœ]/i.test(m[3].trim())) {
+    const nb = parseFloat(m[1].replace(",", "."));
+    const u = m[2] ? UNITES[m[2].toLowerCase()] : null;
+
+    return {
+      n: m[3].trim(),
+      u: u ? u[0] : "",
+      a: u ? nb * u[1] : nb
+    };
+  }
+
+  return { n: ligne, u: "", a: 1 };
+}
+
+function keyOf(n, u) {
+  return (
+    n
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/œ/g, "oe")
+      .replace(/[’]/g, "'")
+      .split(/\s+/)
+      .map(w => (w.length > 3 ? w.replace(/[sx]$/, "") : w))
+      .join(" ") +
+    "|" +
+    (u || "")
+  );
+}
+
+function shopLabel(x) {
+  if (!x.s) return x.n;
+
+  const t = Object.values(x.s).reduce((a, b) => a + b, 0);
+  const r = v => +v.toFixed(2);
+
+  if (x.u === "g") {
+    return x.n + " · " + (t >= 1000 ? r(t / 1000) + " kg" : r(t) + " g");
+  }
+
+  if (x.u === "ml") {
+    return x.n + " · " + (t >= 1000 ? r(t / 1000) + " l" : r(t) + " ml");
+  }
+
+  return t > 1 ? x.n + " ×" + r(t) : x.n;
+}
+
+function toShop() {
+  const wk = iso(weekStart(off));
   const lines = [];
 
-  lines.push(
-    S.desserts[
-      iso(weekStart(off))
-    ]?.i || ""
-  );
-
-  lines.push(
-    S.desserts[iso(weekStart(off)) + "b"]?.i || ""
-  );
+  lines.push(S.desserts[wk]?.i || "");
+  lines.push(S.desserts[wk + "b"]?.i || "");
 
   days(off).forEach(d => {
     const m = S.meals[iso(d)] || {};
@@ -743,28 +800,60 @@ function toShop() {
     });
   });
 
+  /* Total de la semaine affichée, ingrédient par ingrédient */
+  const tot = {};
+
   lines
     .join("\n")
-    .split(/[\n,]/)
-    .map(x => x.trim())
+    .split(/\n|,(?!\d)/)
+    .map(parseIng)
     .filter(Boolean)
-    .forEach(n => {
-      if (have.has(n.toLowerCase())) {
-        return;
-      }
+    .forEach(p => {
+      const k = keyOf(p.n, p.u);
 
-      have.add(n.toLowerCase());
+      if (!tot[k]) tot[k] = { n: p.n, u: p.u, a: 0 };
 
-      const x = {
-        id: nid(),
-        n,
-        d: false
-      };
-
-      S.shop.push(x);
-
-      shopPut(x);
+      tot[k].a += p.a;
     });
+
+  /* Met à jour la liste : on remplace le total de CETTE semaine,
+     donc cliquer deux fois ne double rien */
+  S.shop.forEach(x => {
+    const k = keyOf(x.n, x.u);
+
+    if (tot[k]) {
+      x.s = x.s || {};
+      x.s[wk] = tot[k].a;
+      tot[k].fait = true;
+      shopPut(x);
+    } else if (x.s && x.s[wk] !== undefined) {
+      delete x.s[wk];
+
+      if (Object.keys(x.s).every(k => k === "ajust")) {
+        x.retirer = true;
+        shopDel(x.id);
+      } else {
+        shopPut(x);
+      }
+    }
+  });
+
+  S.shop = S.shop.filter(x => !x.retirer);
+
+  Object.values(tot).forEach(t => {
+    if (t.fait) return;
+
+    const x = {
+      id: nid(),
+      n: t.n,
+      d: false,
+      u: t.u,
+      s: { [wk]: t.a }
+    };
+
+    S.shop.push(x);
+    shopPut(x);
+  });
 
   save();
 
@@ -933,7 +1022,7 @@ function shop() {
 
     items.forEach(x => {
       h += `
-        <div class="item ${x.d ? "done" : ""}">
+        <div class="item ${x.d ? "done" : ""}" data-id="${x.id}">
 
           <input
             type="checkbox"
@@ -941,7 +1030,9 @@ function shop() {
             onchange="tog('${x.id}', this.checked)"
           >
 
-          <span>${esc(x.n)}</span>
+          <span onclick="editItem('${x.id}')">${esc(shopLabel(x))}</span>
+
+          <button onclick="editItem('${x.id}')">✎</button>
 
           <button onclick="del('${x.id}')">✕</button>
 
@@ -964,6 +1055,87 @@ function shop() {
   }
 
   $("#app").innerHTML = h;
+}
+
+/* ---------- Modifier un article déjà dans la liste ---------- */
+
+function parseEdit(txt) {
+  txt = txt.trim();
+
+  let m = txt.match(/^(.*?)\s*[×x]\s*(\d+(?:[.,]\d+)?)$/i);
+
+  if (m && m[1]) {
+    return { n: m[1].trim(), u: "", a: parseFloat(m[2].replace(",", ".")) };
+  }
+
+  m = txt.match(/^(.*?)\s*·\s*(\d+(?:[.,]\d+)?)\s*(kg|mg|g|ml|cl|dl|l)$/i);
+
+  if (m && m[1]) {
+    const u = UNITES[m[3].toLowerCase()];
+
+    return {
+      n: m[1].trim(),
+      u: u[0],
+      a: parseFloat(m[2].replace(",", ".")) * u[1]
+    };
+  }
+
+  return parseIng(txt);
+}
+
+function editItem(id) {
+  const x = S.shop.find(i => i.id === id);
+  const div = document.querySelector(`.item[data-id="${id}"]`);
+
+  if (!x || !div) return;
+
+  div.innerHTML = `
+    <input
+      type="text"
+      value="${esc(shopLabel(x))}"
+      style="margin:0"
+      onkeydown="if(event.key==='Enter')saveItem('${id}')"
+    >
+    <button style="background:var(--ac);color:#fff" onclick="saveItem('${id}')">OK</button>
+    <button onclick="shop()">Annuler</button>
+  `;
+
+  const inp = div.querySelector("input");
+
+  inp.focus();
+  inp.select();
+}
+
+function saveItem(id) {
+  const x = S.shop.find(i => i.id === id);
+  const div = document.querySelector(`.item[data-id="${id}"]`);
+
+  if (!x || !div) return;
+
+  const p = parseEdit(div.querySelector("input").value);
+
+  if (!p || !(p.a > 0) || !p.n) {
+    shop();
+    return;
+  }
+
+  if (keyOf(p.n, p.u) === keyOf(x.n, x.u) && x.s) {
+    /* même ingrédient : on ajuste le total, sans toucher aux semaines */
+    const autres = Object.entries(x.s)
+      .filter(([k]) => k !== "ajust")
+      .reduce((a, [, v]) => a + v, 0);
+
+    x.n = p.n;
+    x.s.ajust = p.a - autres;
+  } else {
+    x.n = p.n;
+    x.u = p.u;
+    x.s = p.a === 1 && !p.u ? null : { ajust: p.a };
+  }
+
+  save();
+  shopPut(x);
+  shop();
 }
 
 function tog(id, v) {
