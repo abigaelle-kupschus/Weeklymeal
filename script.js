@@ -110,6 +110,19 @@ const iso = d =>
   "-" +
   String(d.getDate()).padStart(2, "0");
 
+const JOURS = [
+  "Dimanche",
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi"
+];
+
+/* Jour où commence la semaine (0 = dimanche … 6 = samedi), samedi par défaut */
+const startDay = () => S.profile?.start ?? 6;
+
 function weekStart(o) {
   const t = new Date();
 
@@ -117,7 +130,7 @@ function weekStart(o) {
 
   t.setDate(
     t.getDate() -
-      ((t.getDay() - 6 + 7) % 7) +
+      ((t.getDay() - startDay() + 7) % 7) +
       o * 7
   );
 
@@ -127,7 +140,7 @@ function weekStart(o) {
 function days(o) {
   const s = weekStart(o);
 
-  return Array.from({ length: 9 }, (_, i) => {
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(s);
     d.setDate(s.getDate() + i);
     return d;
@@ -365,6 +378,24 @@ function setup() {
 
   const a = $("#app");
 
+  if (tmp.start === undefined) {
+    a.innerHTML = `
+      <h1>Bienvenue 👋</h1>
+
+      <p>Ta semaine commence quel jour ?</p>
+
+      <div class="choice">
+        ${[1, 2, 3, 4, 5, 6, 0]
+          .map(
+            d => `<button class="sec" onclick="pickStart(${d})">${JOURS[d]}</button>`
+          )
+          .join("")}
+      </div>
+    `;
+
+    return;
+  }
+
   if (!tmp.sex) {
     a.innerHTML = `
       <h1>Bienvenue 👋</h1>
@@ -432,8 +463,14 @@ function setup() {
   }
 }
 
+function pickStart(d) {
+  tmp.start = d;
+
+  setup();
+}
+
 function pick(s) {
-  tmp = { sex: s };
+  tmp.sex = s;
 
   if (s === "m") {
     fin(null);
@@ -457,8 +494,10 @@ function fin(i) {
     sex: tmp.sex,
     cycle: !!tmp.cycle,
     idx: i || 0,
-    since: weekStart(0).toISOString()
+    start: tmp.start ?? 6
   };
+
+  S.profile.since = weekStart(0).toISOString();
 
   tmp = {};
 
@@ -494,7 +533,7 @@ function plan() {
       </button>
 
       <b>
-        ${fr(ds[0])} → ${fr(ds[8])}
+        ${fr(ds[0])} → ${fr(ds[6])}
 
         ${
           off === 0
@@ -1355,6 +1394,22 @@ function settings() {
 
     <div class="card">
 
+      <b>La semaine commence le</b>
+
+      <div class="choice">
+        ${[1, 2, 3, 4, 5, 6, 0]
+          .map(
+            d => `<button class="${c((p.start ?? 6) === d)}" onclick="setStart(${d})">${JOURS[d]}</button>`
+          )
+          .join("")}
+      </div>
+
+      <small>Choisis le même jour sur les deux téléphones pour que le petit déjeuner et le dessert de la semaine restent synchronisés.</small>
+
+    </div>
+
+    <div class="card">
+
       <b>Je suis</b>
 
       <div class="choice">
@@ -1424,6 +1479,24 @@ function settings() {
   `;
 
   $("#app").innerHTML = h;
+}
+
+function setStart(d) {
+  const cur = phaseFor(0);
+
+  S.profile.start = d;
+
+  /* on garde la même phase du cycle malgré le changement de semaine */
+  if (cur !== null) {
+    S.profile.idx = cur;
+    S.profile.since = weekStart(0).toISOString();
+  }
+
+  off = 0;
+
+  save();
+
+  settings();
 }
 
 function setSex(s) {
